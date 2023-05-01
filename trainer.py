@@ -55,6 +55,7 @@ class Trainer():
             device_map=DEVICE_MAP,
             load_in_8bit=True,
             torch_dtype=torch.float16,
+            cache_dir="new_cache_dir/"
         )
         #Clear the collection that tracks which adapters are loaded, as they are associated with self.model
         self.loras = {}
@@ -162,7 +163,7 @@ class Trainer():
         
         return result
 
-    def tokenize_training_text(self, training_text, max_seq_length, separator="\n\n\n", **kwargs):
+    def tokenize_training_text(self, training_text, max_seq_length, separator="\n*****\n", **kwargs):
         samples = training_text.split(separator)
         samples = [x.strip() for x in samples]
         def to_dict(text):
@@ -218,6 +219,7 @@ class Trainer():
             optim='adamw_torch',
             logging_steps=20, 
             save_total_limit=3,  
+            report_to="wandb",
             output_dir=output_dir, 
         )
 
@@ -258,6 +260,9 @@ class Trainer():
         #             raise RuntimeError("Training aborted.")
         #         return super().training_step(model, inputs)
 
+        self.model.is_parallelizable = True
+        self.model.model_parallel = True
+
         self.trainer = transformers.Trainer(
             model=self.model, 
             train_dataset=train_dataset, 
@@ -283,14 +288,30 @@ class Trainer():
 
         
 if __name__ == '__main__':
+    
     t = Trainer()
     t.load_model(MODEL)
+    
+    # with open("results5.txt", 'r', encoding="utf-8") as f:
+    #     training_text = f.read()
+    # t.train(
+    #     training_text, 
+    #     "test", 
+    #     max_seq_length=TRAINING_PARAMS["max_seq_length"],
+    #     micro_batch_size=TRAINING_PARAMS["micro_batch_size"],
+    #     gradient_accumulation_steps=TRAINING_PARAMS["gradient_accumulation_steps"],
+    #     epochs=TRAINING_PARAMS["epochs"],
+    #     learning_rate=TRAINING_PARAMS["learning_rate"],
+    #     lora_r=LORA_TRAINING_PARAMS["lora_r"],
+    #     lora_alpha=LORA_TRAINING_PARAMS["lora_alpha"],
+    #     lora_dropout=LORA_TRAINING_PARAMS["lora_dropout"]
+    # )
 
-    prompt = "Human: How is cheese made?\n\nAssistant:"
+    prompt = "How much net income for iphone in 2015?"
     print(t.generate(prompt))
 
-    t.load_lora('lora/melon-mango-orange')
+    t.load_lora('lora')
     print(t.generate(prompt))
 
-    t.unload_lora()
-    print(t.generate(prompt))
+    # t.unload_lora()
+    # print(t.generate(prompt))
